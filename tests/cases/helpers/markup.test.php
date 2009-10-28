@@ -293,6 +293,50 @@ class MarkupTestCase extends CakeTestCase
     $this->assertEqual('<ol></ol>', _s($h->endTag()));
   }
 
+  function testPopContextReturnsString()
+  {
+    $h = $this->h;
+
+    $h->startTag('div')->startTag('p');
+
+    $h->pushNewContext();
+    $this->assertEqual('', _s($h));
+    $this->assertEqual('', _s($h->endTag()->endTag()));
+    $this->assertEqual('<dl><dt></dt>',
+		       _s($h->startTag('dl')->startTag('dt')->endTag()));
+    $h->pushNewContext();
+
+    $this->assertEqual('', _s($h));
+    $this->assertEqual('', _s($h->endTag()));
+
+    $h->startTag('ul')->startTag('li')->startTag('span', 'foo')
+      ->text('aaa')->endAllTags();
+
+    $this->assertEqual('<ul><li><span class="foo">aaa</span></li></ul>',
+		       $h->popContext());
+
+    $this->assertEqual('</dl>',
+		       $h->endAllTags()->popContext());
+
+    $this->assertEqual('<div><p></p></div>', _s($h->endAllTags()));
+
+    $h->startTag('ol');
+    $this->assertEqual('', $h->popContext()); //No context is on the stack.
+    $this->assertEqual('<ol></ol>', _s($h->endTag()));
+  }
+
+  function testPopContextReturnsStringHandlySyntax()
+  {
+    $this->h->div('outer');
+
+    $this->assertEqual('<div class="inner"><p>foo</p></div>',
+		       $this->h->pushNewContext
+		       ->div('inner')->p->text('foo')->endAllTags->popContext);
+
+    $this->assertEqual('<div class="outer"></div>',
+		       _s($this->h->endAllTags));
+  }
+
   function testShortCutMethods1()
   {
     $h = $this->h;

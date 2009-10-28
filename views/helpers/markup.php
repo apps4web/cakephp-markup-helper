@@ -217,16 +217,21 @@ class MarkupHelper extends AppHelper
   }
 
   /**
-   * @return MarkupHelper
+   * Pops the last context and returns its buffer contents as a string.
+   * If the stack is empty, returns empty string.
+   * 
+   * @return string
    */
   function popContext()
   {
+    $return = "";
     if(count($this->_contextStack) > 0) {
+      $return = $this->__toString();
       list($tag, $buf) = array_pop($this->_contextStack);
       $this->_tagStack = $tag;
       $this->_buffer = $buf;
     }
-    return $this;
+    return $return;
   }
 
   /**
