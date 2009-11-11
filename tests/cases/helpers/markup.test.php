@@ -19,6 +19,17 @@ function _s($obj)
   return strval($obj);
 }
 
+class __HelperForTeset extends AppHelper
+{
+  function method1(){ return join("1", func_get_args()); }
+  function x_x_method2(){ return join("2", func_get_args()); }
+  function link(){ return join("_link_", func_get_args()); }
+  function create(){ return join("_create_", func_get_args()); }
+}
+Mock::generatePartial('__HelperForTeset', 'Mock__HelperForTeset',
+		      array('method1', 'x_x_method2', 'link', 'create'));
+
+
 class MarkupTestCase extends CakeTestCase
 {
   var $h;
@@ -372,5 +383,216 @@ class MarkupTestCase extends CakeTestCase
 		       _s($h->table
 			  ->tr->td(null, 'bar')->nl->endtable));
   }
+
+  function testUseAndHelperVariables()
+  {
+    $h = $this->h;
+
+    $this->assertTrue(in_array('Html', $h->helpers));
+    $this->assertTrue(in_array('Form', $h->helpers));
+    $c = count($h->helpers);
+
+    $h->useHelper(array('name' => 'Foo'));
+    $this->assertTrue(in_array('Foo', $h->helpers));
+    $c2 = count($h->helpers);
+    $this->assertEqual($c + 1, $c2);
+
+    $h->useHelper(array('name' => 'Foo',
+			   'prefix' => 'fff'));
+    $this->assertTrue(in_array('Foo', $h->helpers));
+    $c3 = count($h->helpers);
+    $this->assertEqual($c2, $c3);
+
+    $h->useHelper('Bar');
+    $this->assertTrue(in_array('Bar', $h->helpers));
+    $c4 = count($h->helpers);
+    $this->assertEqual($c2 + 1, $c4);
+  }
+
+  function testUseAndFindHelperMethod()
+  {
+    $h = $this->h;
+
+    $this->assertFalse($h->findHelperMethod('Foo_method1'));
+
+    $h->useHelper(array('name' => 'Foo'));
+
+    $this->assertEqual(array('Foo', 'method1'),
+		       $h->findHelperMethod('Foo_method1'));
+    $this->assertFalse($h->findHelperMethod('Foo'));
+    $this->assertFalse($h->findHelperMethod('Foo_'));
+    $this->assertFalse($h->findHelperMethod('foo_method1'));
+    $this->assertFalse($h->findHelperMethod('x_method1'));
+
+    $h->useHelper(array('name' => 'Foo',
+			'prefix' => 'x'));
+
+    $this->assertEqual(array('Foo', 'method1'),
+		       $h->findHelperMethod('x_method1'));
+    $this->assertEqual(array('Foo', 'x_x_method2'),
+		       $h->findHelperMethod('x_x_x_method2'));
+    $this->assertEqual(array('Foo', 'method1'),
+		       $h->findHelperMethod('Foo_method1'));
+    $this->assertFalse($h->findHelperMethod('x'));
+    $this->assertFalse($h->findHelperMethod('x_'));
+
+    $h->useHelper(array('name' => 'Bar',
+			'prefix' => 'x'));
+
+    $this->assertEqual(array('Bar', 'method1'),
+		       $h->findHelperMethod('x_method1'));
+    $this->assertEqual(array('Bar', 'method1'),
+		       $h->findHelperMethod('Bar_method1'));
+    $this->assertEqual(array('Foo', 'method1'),
+		       $h->findHelperMethod('Foo_method1'));
+  }
+
+  function testUseAndCallHelperMethod()
+  {
+    $h = $this->h;
+
+    $h->useHelper(array('name' => 'Foo',
+			'prefix' => 'x'));
+    $h->useHelper(array('name' => 'Bar'));
+
+    $h->Foo =& new Mock__HelperForTeset(); //this will be done by the View
+    $h->Bar =& new Mock__HelperForTeset(); //this will be done by the View
+
+    $h->Foo->expectOnce('method1', array(1, 2, 3));
+    $h->Foo->setReturnValue('method1', 'one, two, three at Foo::method1');
+    $h->Foo->expectOnce('link', array('call_link'));
+    $h->Foo->setReturnValue('link', '<a>');
+    $h->Foo->expectOnce('x_x_method2', array('xcall'));
+    $h->Foo->setReturnValue('x_x_method2', '<x>');
+
+    $h->Bar->expectOnce('method1', array('a', 'b'));
+    $h->Bar->setReturnValue('method1', '<a><b>');
+
+    $ret = $h->Foo_method1(1, 2, 3);
+    $this->assertIdentical($h, $ret);
+    $this->assertEqual('one, two, three at Foo::method1',
+		       _s($h));
+    $this->assertEqual('<a>',
+		       _s($h->x_link("call_link")));
+    $this->assertEqual('<x>',
+		       _s($h->x_x_x_method2("xcall")));
+    $this->assertEqual('<a><b>',
+		       _s($h->Bar_method1('a', 'b')));
+  }
+
+  function testConstructor()
+  {
+    $h = new MarkupHelper();
+
+    $this->assertEqual(2, count($h->helpers));
+    $this->assertEqual(array('Html', 'method1'),
+		       $h->findHelperMethod('Html_method1'));
+    $this->assertEqual(array('Html', 'method1'),
+		       $h->findHelperMethod('h_method1'));
+    $this->assertEqual(array('Form', 'method1'),
+		       $h->findHelperMethod('Form_method1'));
+    $this->assertEqual(array('Form', 'method1'),
+		       $h->findHelperMethod('f_method1'));
+
+
+    $h2 = new MarkupHelper(array('helpers' => array('Foo',
+						    'Bar' => array('prefix' => 'b'),
+						    'Zoo' => 'z',
+						    array('name' => 'Baz', 'prefix' => 'h'))));
+    
+    $this->assertEqual(6, count($h2->helpers));
+    $this->assertEqual(array('Html', 'method1'),
+		       $h2->findHelperMethod('Html_method1'));
+    $this->assertEqual(array('Baz', 'method1'),
+		       $h2->findHelperMethod('h_method1'));
+    $this->assertEqual(array('Zoo', 'method1'),
+		       $h2->findHelperMethod('z_method1'));
+    $this->assertEqual(array('Form', 'method1'),
+		       $h2->findHelperMethod('Form_method1'));
+    $this->assertEqual(array('Foo', 'method1'),
+		       $h2->findHelperMethod('Foo_method1'));
+    $this->assertEqual(array('Bar', 'method1'),
+		       $h2->findHelperMethod('Bar_method1'));
+    $this->assertEqual(array('Bar', 'method1'),
+		       $h2->findHelperMethod('b_method1'));
+  }
+
+  function testAliasMethod()
+  {
+    $h = $this->h;
+
+    $h->aliasMethod('newline2', 'newline');
+    $h->aliasMethod('div2', 'div');
+
+    $this->assertEqual("<div>\n</div>",
+		       _s($this->h->div2->newline2->end));
+  }
+
+  function testImportHelperMethods()
+  {
+    $h = $this->h;
+
+    $h->useHelper(array('name' => 'Foo',
+			'prefix' => 'x'));
+    $h->useHelper(array('name' => 'Bar'));
+
+    $h->Foo =& new Mock__HelperForTeset(); //this will be done by the View
+    $h->Bar =& new Mock__HelperForTeset(); //this will be done by the View
+
+    $h->Foo->expectOnce('link', array('call_link'));
+    $h->Foo->setReturnValue('link', '<a>');
+    $h->Foo->expectOnce('x_x_method2', array('xcall'));
+    $h->Foo->setReturnValue('x_x_method2', '<x>');
+
+    $h->Foo->expectNever('method1');
+    $h->Bar->expectOnce('method1', array('a', 'b'));
+    $h->Bar->setReturnValue('method1', '<a><b>');
+
+    $h->importHelperMethods('Foo', array('link'));
+    $h->importHelperMethods('x', array('x_x_method2'));
+    $h->importHelperMethods('Foo', array('method1'));
+    $h->importHelperMethods('Bar', array('method1'));
+
+    $this->assertEqual('<a>',
+		       _s($h->link("call_link")));
+    $this->assertEqual('<x>',
+		       _s($h->x_x_method2("xcall")));
+    $this->assertEqual('<a><b>',
+		       _s($h->method1('a', 'b')));
+  }
+
+  function testImportHelperMethodsInUseHelper()
+  {
+    $h = $this->h;
+
+    $h->useHelper(array('name' => 'Foo',
+			'prefix' => 'x',
+			'import' => array('link', 'method1', 'x_x_method2')));
+    $h->useHelper(array('name' => 'Bar',
+			'import' => array('method1')));
+
+    $h->Foo =& new Mock__HelperForTeset(); //this will be done by the View
+    $h->Bar =& new Mock__HelperForTeset(); //this will be done by the View
+    $h->beforeRender(); //this will be done by the View
+
+    $h->Foo->expectOnce('link', array('call_link'));
+    $h->Foo->setReturnValue('link', '<a>');
+    $h->Foo->expectOnce('x_x_method2', array('xcall'));
+    $h->Foo->setReturnValue('x_x_method2', '<x>');
+
+    $h->Foo->expectNever('method1');
+    $h->Bar->expectOnce('method1', array('a', 'b'));
+    $h->Bar->setReturnValue('method1', '<a><b>');
+
+
+
+    $this->assertEqual('<a>',
+		       _s($h->link("call_link")));
+    $this->assertEqual('<x>',
+		       _s($h->x_x_method2("xcall")));
+    $this->assertEqual('<a><b>',
+		       _s($h->method1('a', 'b')));
+  }
+
 
 }

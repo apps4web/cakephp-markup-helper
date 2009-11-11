@@ -17,6 +17,11 @@
 class MarkupHelper extends AppHelper
 {
   /**
+   * @var array Helpers
+   */
+  var $helpers = array();
+
+  /**
    * The tags that have been opened and not yet closed.
    * 
    * @var array
@@ -46,8 +51,28 @@ class MarkupHelper extends AppHelper
   /**
    * @var array
    */
-  var $methodAlias = array('end' => 'endTag',
-			   'nl'  => 'newline');
+  var $_methodAliases = array('end' => 'endTag',
+			      'nl'  => 'newline');
+
+  /**
+   * @var array  methodPrefix => helperName
+   */
+  var $__prefix2Helper = array();
+
+  /**
+   * @var array
+   */
+  var $__helperPrefixes = array();
+
+  /**
+   * @var string
+   */
+  var $__helperPrefixRegex = null;
+
+  /**
+   * @var array  helperName => array of methods
+   */
+  var $__importedMethods = array();
 
   /**
    * Constructor.
@@ -61,6 +86,24 @@ class MarkupHelper extends AppHelper
       $tmp[$tag] = true;
     }
     $this->emptyElements = $tmp;
+
+    $this->useHelper(array('name' => 'Html',
+			   'prefix' => 'h'));
+    $this->useHelper(array('name' => 'Form',
+			   'prefix' => 'f'));
+
+    if(!empty($opts['helpers'])) {
+      $helpers = is_array($opts['helpers']) ? $opts['helpers'] : array($opts['helpers']);
+      foreach($helpers as $i => $helper) {
+	if(is_string($i)) {
+	  if(is_string($helper)) {
+	    $helper = array('prefix' => $helper);
+	  }
+	  $helper['name'] = $i;
+	}
+	$this->useHelper($helper);
+      }
+    }
     parent::__construct();
   }
 
@@ -235,6 +278,16 @@ class MarkupHelper extends AppHelper
   }
 
   /**
+   * The beforeRender callback
+   */
+  function beforeRender()
+  {
+    foreach($this->__importedMethods as $helper => $methods) {
+      $this->importHelperMethods($helper, $methods);
+    }
+  }
+
+  /**
    * The afterRender callback.
    */
   function afterRender()
@@ -271,8 +324,11 @@ class MarkupHelper extends AppHelper
   function __call($method, $args)
   {
     switch(true) {
-    case isset($this->methodAlias[$method]):
-      return $this->dispatchMethod($this->methodAlias[$method], $args);
+    case isset($this->_methodAliases[$method]):
+      return $this->dispatchMethod($this->_methodAliases[$method], $args);
+    case preg_match($this->__helperPrefixRegex, $method, $m):
+      $objName = $this->__prefix2Helper[$m[1]];
+      return $this->html($this->{$objName}->dispatchMethod($m[2], $args));
     case preg_match('/^end(.+)/', $method, $m):
       return $this->endTag($m[1]);
     default:
@@ -301,6 +357,97 @@ class MarkupHelper extends AppHelper
     $ret = ClassRegistry::getObject('view')->dispatchMethod('element', $args);
     $this->popContext();
     return $this->html($ret);
+  }
+
+  /**
+   * Imports another helper.
+   * Its methods can now be called as PREFIX_methodName syntax.
+   *
+   * @param array or string  array('name' => HelperName,
+   *                               'prefix' => method_prefix);
+   *                         If 'prefix' is not specified, 'name' is used.
+   */
+  function useHelper($helper)
+  {
+    $helper = $this->__normalizeHelperConfig($helper);
+
+    // create a variable to assign the Helper object by reference
+    $this->{$helper['name']} = null;
+
+    // register imported methods
+    if(!empty($helper['import'])) {
+      $this->__importedMethods[$helper['name']] = $helper['import'];
+    }
+
+    if(!in_array($helper['name'], $this->helpers)) {
+      $this->helpers[] = $helper['name'];
+    }
+    $this->__prefix2Helper[$helper['prefix']] = $helper['name'];
+    $this->__prefix2Helper[$helper['name']]   = $helper['name'];
+    $this->__rebuildHelperRegex($helper);
+  }
+
+  /**
+   * @access private
+   * @param array or string
+   * @return array
+   */
+  function __normalizeHelperConfig($helper)
+  {
+    if(is_string($helper)) {
+      $helper = array('name' => $helper);
+    }
+    if(!isset($helper['prefix'])) {
+      $helper['prefix'] = $helper['name'];
+    }
+    return $helper;
+  }
+
+  /**
+   * @access private
+   * @param array
+   */
+  function __rebuildHelperRegex($helper)
+  {
+    $this->__helperPrefixes[$helper['name']] = true;
+    $this->__helperPrefixes[$helper['prefix']] = true;
+    $matcher = join('|', array_keys($this->__helperPrefixes));
+    $this->__helperPrefixRegex = '/^('. $matcher .')_(.+)$/';
+  }
+
+  /**
+   * This method is only for the UnitTest.
+   *
+   * @access public
+   */
+  function findHelperMethod($methodCall)
+  {
+    if(preg_match($this->__helperPrefixRegex, $methodCall, $m)) {
+      return array($this->__prefix2Helper[$m[1]], $m[2]);
+    }
+    return false;
+  }
+
+  /**
+   * @param string
+   * @param string
+   */
+  function aliasMethod($newName, $currentName)
+  {
+    $this->_methodAliases[$newName] = $currentName;
+  }
+
+  /**
+   * just creates method aliases regardless of Helpers.
+   *
+   * @param string prefix
+   * @param array 
+   */
+  function importHelperMethods($prefix, $methods)
+  {
+    foreach($methods as $method) {
+      $this->aliasMethod($method, $prefix ."_". $method);
+    }
   }
 
 }
