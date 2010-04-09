@@ -384,6 +384,20 @@ class MarkupTestCase extends CakeTestCase
 			  ->tr->td(null, 'bar')->nl->endtable));
   }
 
+  function testShortCutMethodsFlipArgs()
+  {
+    $h = $this->h;
+
+    $this->assertEqual('<div class="foo">&lt;aaa&gt;</div>', _s($h->div_("<aaa>", "foo")));
+    $this->assertEqual('<div>&lt;aaa&gt;</div>', _s($h->div_("<aaa>")));
+    $this->assertEqual('<div>&lt;aaa&gt;</div>', _s($h->div_("<aaa>", null)));
+    $this->assertEqual('<div><aaa></div>', _s($h->div_("<aaa>", null, false)));
+
+    $this->assertEqual('<div>', _s($h->div_()));
+    $this->assertEqual('<div>', _s($h->div_(null)));
+    $this->assertEqual('<div class="foo">', _s($h->div_(null, "foo")));
+  }
+
   function testUseAndHelperVariables()
   {
     $h = $this->h;

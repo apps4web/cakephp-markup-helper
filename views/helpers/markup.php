@@ -319,6 +319,7 @@ class MarkupHelper extends AppHelper
    * Short-cut methods.
    *
    * - <tag-name>(arg1, arg2, ...) means startTag(<tagname>, arg1, arg2, ...)
+   * - <tag-name>_(arg1, arg2, arg3, ...) means startTag(<tagname>, arg2, arg1, arg3, ...)
    * - end<tag-name>() means endTag(<tagname>)
    */
   function __call($method, $args)
@@ -331,6 +332,11 @@ class MarkupHelper extends AppHelper
       return $this->html($this->{$objName}->dispatchMethod($m[2], $args));
     case preg_match('/^end(.+)/', $method, $m):
       return $this->endTag($m[1]);
+    case preg_match('/(.+)_$/', $method, $m):
+      $tag = $m[1];
+      $content = isset($args[0]) ? $args[0] : null;
+      $attr    = isset($args[1]) ? $args[1] : null;
+      return $this->dispatchMethod('startTag', array_merge(array($tag, $attr, $content), array_slice($args, 2)));
     default:
       return $this->dispatchMethod('startTag', array_merge(array($method), $args));
     }
