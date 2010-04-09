@@ -12,7 +12,7 @@
  * @license       http://www.opensource.org/licenses/mit-license.php The MIT License
  */
 
-App::import('Helper', 'markup');
+App::import('Helper', 'Markup.Markup');
 
 function _s($obj)
 {
