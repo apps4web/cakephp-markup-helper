@@ -70,11 +70,6 @@ class MarkupHelper extends AppHelper
     private $__helperPrefixRegex = null;
 
     /**
-     * @var array  helperName => array of methods
-     */
-    private $__importedMethods = array();
-
-    /**
      * Constructor.
      * 
      * Options:
@@ -273,9 +268,6 @@ class MarkupHelper extends AppHelper
      * The beforeRender callback
      */
     public function beforeRender() {
-        foreach($this->__importedMethods as $helper => $methods) {
-            $this->importHelperMethods($helper, $methods);
-        }
     }
 
     /**
@@ -364,11 +356,6 @@ class MarkupHelper extends AppHelper
         // create a variable to assign the Helper object by reference
         $this->{$helper['name']} = null;
 
-        // register imported methods
-        if(!empty($helper['import'])) {
-            $this->__importedMethods[$helper['name']] = $helper['import'];
-        }
-
         if(!in_array($helper['name'], $this->helpers)) {
             $this->helpers[] = $helper['name'];
         }
@@ -421,17 +408,4 @@ class MarkupHelper extends AppHelper
     public function aliasMethod($newName, $currentName) {
         $this->_methodAliases[$newName] = $currentName;
     }
-
-    /**
-     * just creates method aliases regardless of Helpers.
-     *
-     * @param string prefix
-     * @param array 
-     */
-    public function importHelperMethods($prefix, $methods) {
-        foreach($methods as $method) {
-            $this->aliasMethod($method, $prefix ."_". $method);
-        }
-    }
-
 }
