@@ -76,8 +76,13 @@ class MarkupHelper extends AppHelper
 
     /**
      * Constructor.
+     * 
+     * Options:
+     *   helpers => array(HelperName,
+     *                    HelperName => prefix,
+     *                    array('name' => HelperName, 'prefix' => prefix))
      *
-     * @param $opts array  currently not in use.
+     * @param $options array
      */
     public function __construct($opts=array()) {
         $tmp = array();
@@ -373,8 +378,10 @@ class MarkupHelper extends AppHelper
     }
 
     /**
-     * @param array or string
-     * @return array
+     * Returns normalized form of helper option
+     * 
+     * @param string or array
+     * @return array  ('name' => HelperName, 'prefix' => prefix)
      */
     private function __normalizeHelperConfig($helper) {
         if(is_string($helper)) {
