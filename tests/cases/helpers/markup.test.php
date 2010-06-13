@@ -21,17 +21,6 @@ function _s($obj) {
     return strval($obj);
 }
 
-class __HelperForTeset extends AppHelper
-{
-    function method1(){ return join("1", func_get_args()); }
-    function x_x_method2(){ return join("2", func_get_args()); }
-    function link(){ return join("_link_", func_get_args()); }
-    function create(){ return join("_create_", func_get_args()); }
-}
-Mock::generatePartial('__HelperForTeset', 'Mock__HelperForTeset',
-                      array('method1', 'x_x_method2', 'link', 'create'));
-
-
 class MarkupTestCase extends CakeTestCase
 {
     var $v;
