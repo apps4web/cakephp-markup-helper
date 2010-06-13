@@ -12,7 +12,10 @@
  * @license       http://www.opensource.org/licenses/mit-license.php The MIT License
  */
 
+App::import('View', 'View');
 App::import('Helper', 'Markup.Markup');
+
+Mock::generate('Helper');
 
 function _s($obj) {
     return strval($obj);
@@ -31,10 +34,20 @@ Mock::generatePartial('__HelperForTeset', 'Mock__HelperForTeset',
 
 class MarkupTestCase extends CakeTestCase
 {
+    var $v;
     var $h;
 
     function startTest() {
        $this->h = new MarkupHelper();
+
+       $c = new Controller;
+       $this->v = new View($c, true);
+
+       $this->h->beforeRender();
+    }
+
+    function endTest() {
+        ClassRegistry::flush();
     }
 
     function testStartTag() {
@@ -379,135 +392,6 @@ class MarkupTestCase extends CakeTestCase
        $this->assertEqual('<div class="foo">', _s($h->div_(null, "foo")));
     }
 
-    function testUseAndHelperVariables() {
-       $h = $this->h;
-
-       $this->assertTrue(in_array('Html', $h->helpers));
-       $this->assertTrue(in_array('Form', $h->helpers));
-       $c = count($h->helpers);
-
-       $h->useHelper(array('name' => 'Foo'));
-       $this->assertTrue(in_array('Foo', $h->helpers));
-       $c2 = count($h->helpers);
-       $this->assertEqual($c + 1, $c2);
-
-       $h->useHelper(array('name' => 'Foo',
-                           'prefix' => 'fff'));
-       $this->assertTrue(in_array('Foo', $h->helpers));
-       $c3 = count($h->helpers);
-       $this->assertEqual($c2, $c3);
-
-       $h->useHelper('Bar');
-       $this->assertTrue(in_array('Bar', $h->helpers));
-       $c4 = count($h->helpers);
-       $this->assertEqual($c2 + 1, $c4);
-    }
-
-    function testUseAndFindHelperMethod() {
-       $h = $this->h;
-
-       $this->assertFalse($h->findHelperMethod('Foo_method1'));
-
-       $h->useHelper(array('name' => 'Foo'));
-
-       $this->assertEqual(array('Foo', 'method1'),
-                          $h->findHelperMethod('Foo_method1'));
-       $this->assertFalse($h->findHelperMethod('Foo'));
-       $this->assertFalse($h->findHelperMethod('Foo_'));
-       $this->assertFalse($h->findHelperMethod('foo_method1'));
-       $this->assertFalse($h->findHelperMethod('x_method1'));
-
-       $h->useHelper(array('name' => 'Foo',
-                           'prefix' => 'x'));
-
-       $this->assertEqual(array('Foo', 'method1'),
-                          $h->findHelperMethod('x_method1'));
-       $this->assertEqual(array('Foo', 'x_x_method2'),
-                          $h->findHelperMethod('x_x_x_method2'));
-       $this->assertEqual(array('Foo', 'method1'),
-                          $h->findHelperMethod('Foo_method1'));
-       $this->assertFalse($h->findHelperMethod('x'));
-       $this->assertFalse($h->findHelperMethod('x_'));
-
-       $h->useHelper(array('name' => 'Bar',
-                           'prefix' => 'x'));
-
-       $this->assertEqual(array('Bar', 'method1'),
-                          $h->findHelperMethod('x_method1'));
-       $this->assertEqual(array('Bar', 'method1'),
-                          $h->findHelperMethod('Bar_method1'));
-       $this->assertEqual(array('Foo', 'method1'),
-                          $h->findHelperMethod('Foo_method1'));
-    }
-
-    function testUseAndCallHelperMethod() {
-       $h = $this->h;
-
-       $h->useHelper(array('name' => 'Foo',
-                        'prefix' => 'x'));
-       $h->useHelper(array('name' => 'Bar'));
-
-       $h->Foo =& new Mock__HelperForTeset(); //this will be done by the View
-       $h->Bar =& new Mock__HelperForTeset(); //this will be done by the View
-
-       $h->Foo->expectOnce('method1', array(1, 2, 3));
-       $h->Foo->setReturnValue('method1', 'one, two, three at Foo::method1');
-       $h->Foo->expectOnce('link', array('call_link'));
-       $h->Foo->setReturnValue('link', '<a>');
-       $h->Foo->expectOnce('x_x_method2', array('xcall'));
-       $h->Foo->setReturnValue('x_x_method2', '<x>');
-
-       $h->Bar->expectOnce('method1', array('a', 'b'));
-       $h->Bar->setReturnValue('method1', '<a><b>');
-
-       $ret = $h->Foo_method1(1, 2, 3);
-       $this->assertIdentical($h, $ret);
-       $this->assertEqual('one, two, three at Foo::method1',
-                          _s($h));
-       $this->assertEqual('<a>',
-                          _s($h->x_link("call_link")));
-       $this->assertEqual('<x>',
-                          _s($h->x_x_x_method2("xcall")));
-       $this->assertEqual('<a><b>',
-                          _s($h->Bar_method1('a', 'b')));
-    }
-
-    function testConstructor() {
-       $h = new MarkupHelper();
-
-       $this->assertEqual(2, count($h->helpers));
-       $this->assertEqual(array('Html', 'method1'),
-                          $h->findHelperMethod('Html_method1'));
-       $this->assertEqual(array('Html', 'method1'),
-                          $h->findHelperMethod('h_method1'));
-       $this->assertEqual(array('Form', 'method1'),
-                          $h->findHelperMethod('Form_method1'));
-       $this->assertEqual(array('Form', 'method1'),
-                          $h->findHelperMethod('f_method1'));
-
-
-       $h2 = new MarkupHelper(array('helpers' => array('Foo',
-                                                       'Bar' => array('prefix' => 'b'),
-                                                       'Zoo' => 'z',
-                                                       array('name' => 'Baz', 'prefix' => 'h'))));
-       
-       $this->assertEqual(6, count($h2->helpers));
-       $this->assertEqual(array('Html', 'method1'),
-                          $h2->findHelperMethod('Html_method1'));
-       $this->assertEqual(array('Baz', 'method1'),
-                          $h2->findHelperMethod('h_method1'));
-       $this->assertEqual(array('Zoo', 'method1'),
-                          $h2->findHelperMethod('z_method1'));
-       $this->assertEqual(array('Form', 'method1'),
-                          $h2->findHelperMethod('Form_method1'));
-       $this->assertEqual(array('Foo', 'method1'),
-                          $h2->findHelperMethod('Foo_method1'));
-       $this->assertEqual(array('Bar', 'method1'),
-                          $h2->findHelperMethod('Bar_method1'));
-       $this->assertEqual(array('Bar', 'method1'),
-                          $h2->findHelperMethod('b_method1'));
-    }
-
     function testAliasMethod() {
        $h = $this->h;
 
@@ -516,6 +400,193 @@ class MarkupTestCase extends CakeTestCase
 
        $this->assertEqual("<div>\n</div>",
                           _s($this->h->div2->newline2->end));
+    }
+
+}
+
+class MarkupHelper_OtherHelpersTestCase extends CakeTestCase
+{
+    var $h;
+
+    function startTest() {
+       $this->h = new MarkupHelper();
+    }
+
+    function endTest() {
+        ClassRegistry::flush();
+    }
+
+    function _createView() {
+        $c = new Controller;
+        return new View($c, true);
+    }
+
+    /**
+     * - Add HelperName to $helpers
+     * - Add (prefix => HelperName) to $prefix2Helper 
+     */
+    function testUseHelper() {
+       $h = $this->h;
+
+       $helperCount = count($h->helpers);
+       $prefixCount = count($h->prefix2Helper);
+
+
+       $h->useHelper(array('name' => 'Foo'));
+       $this->assertTrue(in_array('Foo', $h->helpers));
+       $this->assertEqual($helperCount + 1,
+                          ($helperCount = count($h->helpers)));
+       $this->assertEqual($prefixCount,
+                          ($prefixCount = count($h->prefix2Helper)));
+
+
+       $h->useHelper(array('name' => 'Foo',
+                           'prefix' => 'fff'));
+       $this->assertTrue(in_array('Foo', $h->helpers));
+       $this->assertEqual('Foo', $h->prefix2Helper['fff']);
+       $this->assertEqual($helperCount,
+                          ($helperCount = count($h->helpers)));
+       $this->assertEqual($prefixCount + 1,
+                          ($prefixCount = count($h->prefix2Helper)));
+
+
+       $h->useHelper('Bar');
+       $this->assertTrue(in_array('Bar', $h->helpers));
+       $this->assertEqual($helperCount + 1,
+                          ($helperCount = count($h->helpers)));
+       $this->assertEqual($prefixCount,
+                          ($prefixCount = count($h->prefix2Helper)));
+    }
+
+    function assertHelperPrefixMatch($p, $x, $match1, $match2) {
+        $this->assertTrue(preg_match($p, $x, $m));
+        $this->assertEqual($match1, $m[1]);
+        $this->assertEqual($match2, $m[2]);
+    }
+
+    function testBuildHelperRegex() {
+        $h = $this->h;
+
+        $v = $this->_createView();
+        $v->loaded['html'] = new MockHelper();
+        $v->loaded['form'] = new MockHelper();
+        $v->loaded['fooBar'] = new MockHelper();
+
+        $regex = $h->buildHelperRegex();
+
+        $this->assertHelperPrefixMatch($regex, 'Html_link', 'Html', 'link');
+        $this->assertHelperPrefixMatch($regex, 'Form_create', 'Form', 'create');
+        $this->assertHelperPrefixMatch($regex, 'FooBar_xxx_yyy', 'FooBar', 'xxx_yyy');
+
+        $this->assertNoPattern($regex, 'html_xxxx');
+        $this->assertNoPattern($regex, 'Html');
+        $this->assertNoPattern($regex, 'Form_');
+        $this->assertNoPattern($regex, 'Unknown_');
+    }
+
+    function testBuildHelperRegex_customPrefixes() {
+        $h = $this->h;
+
+        $v = $this->_createView();
+        $v->loaded['fooBar'] = new MockHelper();
+
+        $regex = $h->buildHelperRegex();
+        $this->assertHelperPrefixMatch($regex, 'FooBar_xxx_yyy', 'FooBar', 'xxx_yyy');
+        $this->assertNoPattern($regex, 't_xyz');
+        $this->assertNoPattern($regex, 'fb_xxx_yyy');
+
+        // register prefixes
+        $h->useHelper(array('name' => 'Test', 'prefix' => 't'));
+        $h->useHelper(array('name' => 'FooBar', 'prefix' => 'fb'));
+
+        $regex = $h->buildHelperRegex();
+        $this->assertHelperPrefixMatch($regex, 'FooBar_xxx_yyy', 'FooBar', 'xxx_yyy');
+        $this->assertHelperPrefixMatch($regex, 't_xyz', 't', 'xyz');
+        $this->assertHelperPrefixMatch($regex, 'fb_xxx_yyy', 'fb', 'xxx_yyy');
+        $this->assertNoPattern($regex, 'x_lkjkfdsa');
+    }
+
+    function testCallHelperMethod() {
+        $h = $this->h;
+
+        $v = $this->_createView();
+        $v->loaded['html'] = new MockHelper();
+        $v->loaded['fooBar'] = new MockHelper();
+        $h->useHelper(array('name' => 'FooBar', 'prefix' => 'fb'));
+
+        // execute beforeRender callback
+        $h->beforeRender();
+
+        $args = array('label', '/path');
+
+        $dispatch = array('link', $args);
+        $v->loaded['html']->expectOnce('dispatchMethod', $dispatch);
+        $v->loaded['html']->setReturnValue('dispatchMethod', '<a>', $dispatch);
+
+        $dispatch = array('test_method', $args);
+        $v->loaded['fooBar']->expectOnce('dispatchMethod', $dispatch);
+        $v->loaded['fooBar']->setReturnValue('dispatchMethod', 'test return', $dispatch);
+
+        $this->assertEqual('<a>',
+                           $h->callHelperMethod('Html', 'link', $args));
+        $this->assertEqual('test return',
+                           $h->callHelperMethod('fb', 'test_method', $args));
+    }
+
+    function test__CallHelperMethods() {
+        $h = $this->h;
+
+        $v = $this->_createView();
+        $v->loaded['html'] = new MockHelper();
+        $v->loaded['fooBar'] = new MockHelper();
+        $h->useHelper(array('name' => 'FooBar', 'prefix' => 'fb'));
+
+        // execute beforeRender callback
+        $h->beforeRender();
+
+        $args = array('label', '/path');
+
+        $dispatch = array('link', $args);
+        $v->loaded['html']->expectOnce('dispatchMethod', $dispatch);
+        $v->loaded['html']->setReturnValue('dispatchMethod', '<a>', $dispatch);
+
+        $dispatch = array('test_method', $args);
+        $v->loaded['fooBar']->expectOnce('dispatchMethod', $dispatch);
+        $v->loaded['fooBar']->setReturnValue('dispatchMethod', '<test /><return />', $dispatch);
+
+        $this->assertIdentical($h, $h->Html_link($args[0], $args[1]));
+        $this->assertEqual('<a>', _s($h));
+
+        $this->assertIdentical($h, $h->fb_test_method($args[0], $args[1]));
+        $this->assertEqual('<test /><return />', _s($h));
+
+        $this->assertIdentical($h, $h->Unknown_test_method("a", "b"));
+        $this->assertEqual('<Unknown_test_method class="a">b</Unknown_test_method>', _s($h));
+    }
+
+    function testConstructor() {
+       $h = new MarkupHelper();
+
+       $this->assertEqual(2, count($h->helpers));
+       $this->assertTrue(in_array('Html', $h->helpers));
+       $this->assertTrue(in_array('Form', $h->helpers));
+       $this->assertEqual('Html', $h->prefix2Helper['h']);
+       $this->assertEqual('Form', $h->prefix2Helper['f']);
+
+       $h2 = new MarkupHelper(array('helpers' => array('Foo',
+                                                       'Bar' => array('prefix' => 'b'),
+                                                       'Zoo' => 'z',
+                                                       array('name' => 'Baz', 'prefix' => 'h'))));
+
+       $this->assertEqual(6, count($h2->helpers));
+       foreach(array('Html', 'Form', 'Foo', 'Bar', 'Zoo', 'Baz') as $a) {
+           $this->assertTrue(in_array($a, $h2->helpers));
+       }
+       $this->assertEqual('Baz', $h2->prefix2Helper['h']);
+       $this->assertEqual('Form', $h2->prefix2Helper['f']);
+       $this->assertEqual('Bar', $h2->prefix2Helper['b']);
+       $this->assertEqual('Zoo', $h2->prefix2Helper['z']);
+
     }
 
 

@@ -22,6 +22,13 @@ class MarkupHelper extends AppHelper
     public $helpers = array();
 
     /**
+     * View instance
+     * 
+     * @var object 
+     */
+    protected $_view = null;
+
+    /**
      * The tags that have been opened and not yet closed.
      * 
      * @var array
@@ -57,7 +64,7 @@ class MarkupHelper extends AppHelper
     /**
      * @var array  methodPrefix => helperName
      */
-    private $__prefix2Helper = array();
+    public $prefix2Helper = array();
 
     /**
      * @var array
@@ -67,7 +74,7 @@ class MarkupHelper extends AppHelper
     /**
      * @var string
      */
-    private $__helperPrefixRegex = null;
+    private $__prefixMatchRegex = null;
 
     /**
      * Constructor.
@@ -268,6 +275,8 @@ class MarkupHelper extends AppHelper
      * The beforeRender callback
      */
     public function beforeRender() {
+        $this->_view = ClassRegistry::getObject('view');
+        $this->__prefixMatchRegex = $this->buildHelperRegex();
     }
 
     /**
@@ -306,9 +315,8 @@ class MarkupHelper extends AppHelper
         switch(true) {
         case isset($this->_methodAliases[$method]):
             return $this->dispatchMethod($this->_methodAliases[$method], $args);
-        case preg_match($this->__helperPrefixRegex, $method, $m):
-            $objName = $this->__prefix2Helper[$m[1]];
-            return $this->html($this->{$objName}->dispatchMethod($m[2], $args));
+        case preg_match($this->__prefixMatchRegex, $method, $m):
+            return $this->html($this->callHelperMethod($m[1], $m[2], $args));
         case preg_match('/^end(.+)/', $method, $m):
             return $this->endTag($m[1]);
         case preg_match('/(.+)_$/', $method, $m):
@@ -359,9 +367,9 @@ class MarkupHelper extends AppHelper
         if(!in_array($helper['name'], $this->helpers)) {
             $this->helpers[] = $helper['name'];
         }
-        $this->__prefix2Helper[$helper['prefix']] = $helper['name'];
-        $this->__prefix2Helper[$helper['name']]   = $helper['name'];
-        $this->__rebuildHelperRegex($helper);
+        if($helper['prefix'] != $helper['name']) {
+            $this->prefix2Helper[$helper['prefix']] = $helper['name'];
+        }
     }
 
     /**
@@ -381,24 +389,32 @@ class MarkupHelper extends AppHelper
     }
 
     /**
-     * @param array
+     * Builds regex to match `prefix_otherHelperMethod'
+     * from View->loaded and $prefix2Helper.
+     * 
+     * @return string  regex
      */
-    private function __rebuildHelperRegex($helper) {
-        $this->__helperPrefixes[$helper['name']] = true;
-        $this->__helperPrefixes[$helper['prefix']] = true;
-        $matcher = join('|', array_keys($this->__helperPrefixes));
-        $this->__helperPrefixRegex = '/^('. $matcher .')_(.+)$/';
+    public function buildHelperRegex() {
+        $helpers = array_map(array('Inflector', 'camelize'),
+                             array_keys(ClassRegistry::getObject('view')->loaded));
+        $helpers = array_unique(array_merge($helpers, array_keys($this->prefix2Helper)));
+        $matcher = join('|', $helpers);
+        return '/^('. $matcher .')_(.+)$/';
     }
 
     /**
-     * This method is only for the UnitTest.
-     *
+     * Invokes other helper's methods.
+     * 
+     * @param string  HelperName or prefix
+     * @param string  method name
+     * @param array   arguments
+     * @return mixed
      */
-    public function findHelperMethod($methodCall) {
-        if(preg_match($this->__helperPrefixRegex, $methodCall, $m)) {
-            return array($this->__prefix2Helper[$m[1]], $m[2]);
-        }
-        return false;
+    public function callHelperMethod($helper, $method, $args) {
+        $helperName = isset($this->prefix2Helper[$helper]) ?
+            $this->prefix2Helper[$helper] : $helper;
+        return $this->_view->loaded[Inflector::variable($helperName)]
+            ->dispatchMethod($method, $args);
     }
 
     /**
