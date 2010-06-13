@@ -467,12 +467,7 @@ class MarkupHelper_OtherHelpersTestCase extends CakeTestCase
     function testBuildHelperRegex() {
         $h = $this->h;
 
-        $v = $this->_createView();
-        $v->loaded['html'] = new MockHelper();
-        $v->loaded['form'] = new MockHelper();
-        $v->loaded['fooBar'] = new MockHelper();
-
-        $regex = $h->buildHelperRegex();
+        $regex = $h->buildHelperRegex(array('Html', 'Form', 'FooBar'));
 
         $this->assertHelperPrefixMatch($regex, 'Html_link', 'Html', 'link');
         $this->assertHelperPrefixMatch($regex, 'Form_create', 'Form', 'create');
@@ -487,19 +482,14 @@ class MarkupHelper_OtherHelpersTestCase extends CakeTestCase
     function testBuildHelperRegex_customPrefixes() {
         $h = $this->h;
 
-        $v = $this->_createView();
-        $v->loaded['fooBar'] = new MockHelper();
+        $regex = $h->buildHelperRegex(array('FooBar'));
 
-        $regex = $h->buildHelperRegex();
         $this->assertHelperPrefixMatch($regex, 'FooBar_xxx_yyy', 'FooBar', 'xxx_yyy');
         $this->assertNoPattern($regex, 't_xyz');
         $this->assertNoPattern($regex, 'fb_xxx_yyy');
 
-        // register prefixes
-        $h->useHelper(array('name' => 'Test', 'prefix' => 't'));
-        $h->useHelper(array('name' => 'FooBar', 'prefix' => 'fb'));
-
-        $regex = $h->buildHelperRegex();
+        $regex = $h->buildHelperRegex(array('Test', 'FooBar'),
+                                      array('t', 'fb'));
         $this->assertHelperPrefixMatch($regex, 'FooBar_xxx_yyy', 'FooBar', 'xxx_yyy');
         $this->assertHelperPrefixMatch($regex, 't_xyz', 't', 'xyz');
         $this->assertHelperPrefixMatch($regex, 'fb_xxx_yyy', 'fb', 'xxx_yyy');

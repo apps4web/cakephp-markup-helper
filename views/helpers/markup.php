@@ -77,6 +77,13 @@ class MarkupHelper extends AppHelper
     private $__prefixMatchRegex = null;
 
     /**
+     * CamelizedHelperName|prefix => Helper instance
+     * 
+     * @var array
+     */
+    protected $_loadedHelpers = array();
+
+    /**
      * Constructor.
      * 
      * Options:
@@ -273,10 +280,21 @@ class MarkupHelper extends AppHelper
 
     /**
      * The beforeRender callback
+     *
+     * Collects loaded helpers and builds regex.
      */
     public function beforeRender() {
-        $this->_view = ClassRegistry::getObject('view');
-        $this->__prefixMatchRegex = $this->buildHelperRegex();
+        $this->_view =& ClassRegistry::getObject('view');
+
+        $helperNames = array();
+        foreach($this->_view->loaded as $camelBacked => $obj) {
+            $camelized = Inflector::camelize($camelBacked);
+            $this->_loadedHelpers[$camelized] =& $this->_view->loaded[$camelBacked];
+            $helperNames[] = $camelized;
+        }
+        $prefixes = array_keys($this->prefix2Helper);
+
+        $this->__prefixMatchRegex = $this->buildHelperRegex($helperNames, $prefixes);
     }
 
     /**
@@ -390,20 +408,19 @@ class MarkupHelper extends AppHelper
 
     /**
      * Builds regex to match `prefix_otherHelperMethod'
-     * from View->loaded and $prefix2Helper.
      * 
+     * @param array  camelized HelperNames
+     * @param array  prefixes
      * @return string  regex
      */
-    public function buildHelperRegex() {
-        $helpers = array_map(array('Inflector', 'camelize'),
-                             array_keys(ClassRegistry::getObject('view')->loaded));
-        $helpers = array_unique(array_merge($helpers, array_keys($this->prefix2Helper)));
+    public function buildHelperRegex($helperNames, $prefixes=array()) {
+        $helpers = array_unique(array_merge($helperNames, $prefixes));
         $matcher = join('|', $helpers);
         return '/^('. $matcher .')_(.+)$/';
     }
 
     /**
-     * Invokes other helper's methods.
+     * Invokes other helper's method.
      * 
      * @param string  HelperName or prefix
      * @param string  method name
@@ -413,8 +430,7 @@ class MarkupHelper extends AppHelper
     public function callHelperMethod($helper, $method, $args) {
         $helperName = isset($this->prefix2Helper[$helper]) ?
             $this->prefix2Helper[$helper] : $helper;
-        return $this->_view->loaded[Inflector::variable($helperName)]
-            ->dispatchMethod($method, $args);
+        return $this->_loadedHelpers[$helperName]->dispatchMethod($method, $args);
     }
 
     /**
