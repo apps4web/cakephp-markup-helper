@@ -16,6 +16,7 @@ App::import('View', 'View');
 App::import('Helper', 'Markup.Markup');
 
 Mock::generate('Helper');
+Mock::generate('View');
 
 function _s($obj) {
     return strval($obj);
@@ -568,5 +569,47 @@ class MarkupHelper_OtherHelpersTestCase extends CakeTestCase
 
     }
 
+    function testRenderElement() {
+        $h = $this->h;
+
+        $v = new MockView();
+        ClassRegistry::addObject('view', $v);
+        
+        // execute beforeRender
+        $h->beforeRender();
+
+        $v->expectCallCount('dispatchMethod', 2);
+        $v->expectAt(0, 'dispatchMethod', array('element', array('element1')));
+        $v->expectAt(1, 'dispatchMethod', array('element', array('element2', array('var' => true))));
+
+        $h->renderElement('element1');
+        $h->renderElement('element2', array('var' => true));
+    }
+
+    function testRenderElement_context() {
+        $h = $this->h;
+        $className = get_class($this).uniqid()."TestView";
+
+        $code = 'class '. $className .' extends View {
+            var $h;
+            function __construct($h){ $this->h = $h; }
+            function element($e) {
+                return strval($this->h->p->text($e)->endAllTags);
+            }
+        }';
+        eval($code);
+
+        $v = new $className($h);
+        ClassRegistry::addObject('view', $v);
+        $h->beforeRender();
+
+        $this->assertEqual('<div>', _s($h->div));
+        $this->assertEqual('<p>element1</p>',
+                           _s($h->renderElement('element1')));
+        $this->assertEqual('</div>', _s($h->end));
+
+        $this->assertEqual('<div class="a"><p>element2</p></div>',
+                           _s($h->div("a")->renderElement('element2')->enddiv));
+    }
 
 }

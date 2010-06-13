@@ -363,7 +363,7 @@ class MarkupHelper extends AppHelper
     public function renderElement() {
         $args = func_get_args();
         $this->pushNewContext();
-        $ret = ClassRegistry::getObject('view')->dispatchMethod('element', $args);
+        $ret = $this->_view->dispatchMethod('element', $args);
         $this->popContext();
         return $this->html($ret);
     }
