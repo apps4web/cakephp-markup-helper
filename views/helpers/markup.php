@@ -2,15 +2,15 @@
 /**
  * Markup Helper class file.
  *
- * Allows you to create a complex (X)HTML structure.
+ * MarkupHelper provides a fluent interface for building complex (X)HTML.
  *
- * Copyright (c) 2009 Takayuki Miwa <i@tkyk.name>
+ * Copyright (c) 2010 Takayuki Miwa <i@tkyk.name>
  *
  * Licensed under The MIT License
  * Redistributions of files must retain the above copyright notice.
  *
- * @copyright     Copyright (c) 2009 Takayuki Miwa <i@tkyk.name>
- * @link          http://wp.serpere.info/
+ * @copyright     Copyright (c) 2010 Takayuki Miwa <i@tkyk.name>
+ * @link          http://github.com/tkyk/cakephp-markup-helper
  * @license       http://www.opensource.org/licenses/mit-license.php The MIT License
  */
 
