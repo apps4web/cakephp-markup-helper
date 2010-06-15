@@ -612,4 +612,43 @@ class MarkupHelper_OtherHelpersTestCase extends CakeTestCase
                            _s($h->div("a")->renderElement('element2')->enddiv));
     }
 
+
+    function testBeforeRender_noRegister() {
+        $h = $this->h;
+        $h->useHelper(array('name' => 'FooBar', 'prefix' => 'fb'));
+
+        // EmailComponent does not register the view to the ClassRegistry!
+        $view = ClassRegistry::getObject('view');
+        $this->assertTrue(empty($view));
+
+        // These assignments are done by view
+        $h->Html = new MockHelper();
+        $h->FooBar = new MockHelper();
+
+        $this->assertEqual(array('Html', 'Form', 'FooBar'),
+                           $h->helpers);
+
+        // execute beforeRender callback
+        $h->beforeRender();
+
+        $args = array('label', '/path');
+
+        $dispatch = array('link', $args);
+        $h->Html->expectOnce('dispatchMethod', $dispatch);
+        $h->Html->setReturnValue('dispatchMethod', '<a>', $dispatch);
+
+        $dispatch = array('test_method', $args);
+        $h->FooBar->expectOnce('dispatchMethod', $dispatch);
+        $h->FooBar->setReturnValue('dispatchMethod', '<test /><return />', $dispatch);
+
+        $this->assertIdentical($h, $h->Html_link($args[0], $args[1]));
+        $this->assertEqual('<a>', _s($h));
+
+        $this->assertIdentical($h, $h->fb_test_method($args[0], $args[1]));
+        $this->assertEqual('<test /><return />', _s($h));
+
+        $this->assertIdentical($h, $h->Unknown_test_method("a", "b"));
+        $this->assertEqual('<Unknown_test_method class="a">b</Unknown_test_method>', _s($h));        
+    }
+
 }
